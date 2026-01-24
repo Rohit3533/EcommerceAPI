@@ -73,6 +73,17 @@ public class CategoryService {
 
         categoryRepository.save(category);
     }
+    public void activateCategory(Long id) {
+
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() ->
+                        new ApiException("Category not found",
+                                HttpStatus.NOT_FOUND));
+
+        category.setStatus("ACTIVE");
+
+        categoryRepository.save(category);
+    }
 
     // ================= GET ALL (ADMIN) =================
     public List<CategoryResponse> getAllCategories() {

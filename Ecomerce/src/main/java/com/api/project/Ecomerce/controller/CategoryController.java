@@ -62,6 +62,19 @@ public class CategoryController {
                 .timestamp(LocalDateTime.now())
                 .build();
     }
+    // ================= ADMIN REACTIVATED (SOFT) =================
+    @PostMapping("/api/admin/categories/{id}")
+    public ApiResponse<Void> ActivateCategory(@PathVariable Long id) {
+
+        categoryService.activateCategory(id);
+
+        return ApiResponse.<Void>builder()
+                .success(true)
+                .message("Category Reactivated successfully")
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
 
     // ================= ADMIN GET ALL =================
     @GetMapping("/api/admin/categories")
