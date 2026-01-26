@@ -7,6 +7,7 @@ import com.api.project.Ecomerce.response.ApiResponse;
 import com.api.project.Ecomerce.security.JwtUtil;
 import com.api.project.Ecomerce.service.AuthService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private final AuthService authService;
@@ -24,13 +26,13 @@ public class AuthController {
     // ================= REGISTER =================
     @PostMapping("/register")
     public ApiResponse<Void> register(@RequestBody RegisterRequest request) {
-
+        log.info("AuthController - Registering user: {}", request.getEmail());
         authService.register(
                 request.getName(),
                 request.getEmail(),
                 request.getPassword()
         );
-
+        log.info("AuthController - User registered successfully: {}", request.getEmail());
         return ApiResponse.<Void>builder()
                 .success(true)
                 .message("User registered successfully")
@@ -41,6 +43,7 @@ public class AuthController {
     // ================= LOGIN =================
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@RequestBody LoginRequest request) {
+        log.info("AuthController - Login attempt: {}", request.getEmail());
 
         String token = authService.login(
                 request.getEmail(),
@@ -49,11 +52,16 @@ public class AuthController {
 
         User user = userRepository.findByEmail(request.getEmail()).get();
 
+        String expiresAt = jwtUtil.extractExpiration(token).toString();
+
         LoginResponse response = LoginResponse.builder()
                 .token(token)
                 .role(user.getRole())
-                .expiresAt(jwtUtil.extractExpiration(token).toString())
+                .expiresAt(expiresAt)
                 .build();
+
+        log.info("AuthController - Login successful for {}: role={}, expiresAt={}",
+                request.getEmail(), user.getRole(), expiresAt);
 
         return ApiResponse.<LoginResponse>builder()
                 .success(true)
@@ -69,8 +77,13 @@ public class AuthController {
             @RequestHeader("Authorization") String authHeader) {
 
         String token = authHeader.substring(7);
+        String masked = token.length() > 4 ? ("***" + token.substring(token.length() - 4)) : "***";
+
+        log.info("AuthController - Logout requested for token ending: {}", masked);
 
         authService.logout(token);
+
+        log.info("AuthController - Logged out token ending: {}", masked);
 
         return ApiResponse.<Void>builder()
                 .success(true)
@@ -87,9 +100,13 @@ public class AuthController {
                 .getAuthentication()
                 .getName();
 
+        log.info("AuthController - Fetching current user from SecurityContext: {}", email);
+
         User user = userRepository.findByEmail(email).orElseThrow();
 
         user.setPassword(null); // never expose password
+
+        log.info("AuthController - User details fetched for: {}", email);
 
         return ApiResponse.<User>builder()
                 .success(true)

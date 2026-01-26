@@ -7,6 +7,7 @@ import com.api.project.Ecomerce.repository.SessionRepository;
 import com.api.project.Ecomerce.repository.UserRepository;
 import com.api.project.Ecomerce.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.*;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -31,8 +33,10 @@ public class AuthService {
 
     // ================= REGISTER =================
     public void register(String name, String email, String password) {
+        log.info("AuthService - Registering user: {} (name={})", email, name);
 
         if (userRepository.existsByEmail(email)) {
+            log.warn("AuthService - Registration failed, email already registered: {}", email);
             throw new ApiException("Email already registered",
                     HttpStatus.BAD_REQUEST);
         }
@@ -46,24 +50,29 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        log.info("AuthService - User registered successfully: {}", email);
     }
 
     // ================= LOGIN =================
     public String login(String email, String password) {
+        log.info("AuthService - Login attempt for: {}", email);
 
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, password)
             );
         } catch (AuthenticationException ex) {
+            log.warn("AuthService - Authentication failed for {}: {}", email, ex.getMessage());
             throw new ApiException("Invalid credentials",
                     HttpStatus.UNAUTHORIZED);
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ApiException("User not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("AuthService - User not found during login: {}", email);
+                    return new ApiException("User not found", HttpStatus.NOT_FOUND);
+                });
 
         String token = jwtUtil.generateToken(
                 user.getEmail(),
@@ -82,20 +91,35 @@ public class AuthService {
 
         sessionRepository.save(session);
 
+        String masked = maskToken(token);
+        log.info("AuthService - Login successful for {}: role={}, tokenEnding={}, expiry={}",
+                email, user.getRole(), masked, session.getExpiryTime());
+
         return token;
     }
 
     // ================= LOGOUT =================
     public void logout(String token) {
+        String masked = maskToken(token);
+        log.info("AuthService - Logout requested for token ending: {}", masked);
 
         Session session = sessionRepository
                 .findByTokenAndIsActiveTrue(token)
-                .orElseThrow(() ->
-                        new ApiException("Invalid session",
-                                HttpStatus.UNAUTHORIZED));
+                .orElseThrow(() -> {
+                    log.warn("AuthService - Invalid or inactive session for token ending: {}", masked);
+                    return new ApiException("Invalid session", HttpStatus.UNAUTHORIZED);
+                });
+
+        log.info("AuthService - Found active session for user: {}", session.getUser().getEmail());
 
         session.setIsActive(false);
         sessionRepository.save(session);
+
+        log.info("AuthService - Session invalidated for user: {} tokenEnding: {}", session.getUser().getEmail(), masked);
+    }
+
+    private String maskToken(String token) {
+        if (token == null) return "***";
+        return token.length() > 4 ? ("***" + token.substring(token.length() - 4)) : "***";
     }
 }
-

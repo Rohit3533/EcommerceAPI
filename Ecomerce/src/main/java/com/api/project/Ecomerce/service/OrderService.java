@@ -1,3 +1,4 @@
+// java
 package com.api.project.Ecomerce.service;
 import com.api.project.Ecomerce.dto.*;
 import com.api.project.Ecomerce.entity.*;
@@ -7,6 +8,7 @@ import com.api.project.Ecomerce.exception.ApiException;
 import com.api.project.Ecomerce.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -33,10 +36,14 @@ public class OrderService {
                 .getAuthentication()
                 .getName();
 
+        log.debug("OrderService - Resolving current user from SecurityContext: {}", email);
+
         return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ApiException("User not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("OrderService - User not found: {}", email);
+                    return new ApiException("User not found",
+                            HttpStatus.NOT_FOUND);
+                });
     }
 
     // ================= PLACE ORDER =================
@@ -44,15 +51,19 @@ public class OrderService {
     public OrderResponse placeOrder() {
 
         User user = getCurrentUser();
+        log.info("OrderService - placeOrder called: userId={}", user.getId());
 
         Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() ->
-                        new ApiException("Cart not found",
-                                HttpStatus.BAD_REQUEST));
+                .orElseThrow(() -> {
+                    log.warn("OrderService - Cart not found for userId={}", user.getId());
+                    return new ApiException("Cart not found",
+                            HttpStatus.BAD_REQUEST);
+                });
 
         List<CartItem> cartItems = cartItemRepository.findByCart(cart);
 
         if (cartItems.isEmpty()) {
+            log.warn("OrderService - Cart is empty for userId={}", user.getId());
             throw new ApiException("Cart is empty",
                     HttpStatus.BAD_REQUEST);
         }
@@ -64,11 +75,14 @@ public class OrderService {
 
             Product product = productRepository.findById(
                             cartItem.getProduct().getId())
-                    .orElseThrow(() ->
-                            new ApiException("Product not found",
-                                    HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> {
+                        log.warn("OrderService - Product not found while placing order: productId={}", cartItem.getProduct().getId());
+                        return new ApiException("Product not found",
+                                HttpStatus.NOT_FOUND);
+                    });
 
             if (cartItem.getQuantity() > product.getStock()) {
+                log.warn("OrderService - Insufficient stock for productId={} requested={} stock={}", product.getId(), cartItem.getQuantity(), product.getStock());
                 throw new ApiException(
                         "Insufficient stock for " + product.getName(),
                         HttpStatus.BAD_REQUEST);
@@ -77,6 +91,7 @@ public class OrderService {
             // Deduct stock immediately (BLOCK quantity)
             product.setStock(product.getStock() - cartItem.getQuantity());
             productRepository.save(product);
+            log.debug("OrderService - Deducted stock for productId={} newStock={}", product.getId(), product.getStock());
 
             BigDecimal subtotal = cartItem.getPriceAtAddition()
                     .multiply(BigDecimal.valueOf(cartItem.getQuantity()));
@@ -107,6 +122,7 @@ public class OrderService {
                 .build();
 
         Order savedOrder = orderRepository.save(order);
+        log.info("OrderService - Order created: orderId={}, userId={}, itemsCount={}, total={}", savedOrder.getId(), user.getId(), orderItems.size(), totalAmount);
 
         for (OrderItem item : orderItems) {
             item.setOrder(savedOrder);
@@ -116,9 +132,11 @@ public class OrderService {
         }
 
         orderItemRepository.saveAll(orderItems);
+        log.debug("OrderService - Order items saved for orderId={}", savedOrder.getId());
 
         // Clear cart
         cartItemRepository.deleteAll(cartItems);
+        log.info("OrderService - Cleared cart after order placement: userId={}, removedItems={}", user.getId(), cartItems.size());
 
         return mapToResponse(savedOrder, orderItems);
     }
@@ -127,6 +145,7 @@ public class OrderService {
     public List<OrderResponse> getMyOrders() {
 
         User user = getCurrentUser();
+        log.info("OrderService - getMyOrders called: userId={}", user.getId());
 
         List<Order> orders = orderRepository.findByUser(user);
 
@@ -136,6 +155,7 @@ public class OrderService {
             responses.add(mapToResponse(order, order.getItems()));
         }
 
+        log.debug("OrderService - getMyOrders returned count={} for userId={}", responses.size(), user.getId());
         return responses;
     }
 
@@ -143,22 +163,29 @@ public class OrderService {
     public OrderResponse getOrderDetails(Long orderId) {
 
         User user = getCurrentUser();
+        log.info("OrderService - getOrderDetails called: orderId={}, userId={}", orderId, user.getId());
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ApiException("Order not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("OrderService - Order not found: orderId={}", orderId);
+                    return new ApiException("Order not found",
+                            HttpStatus.NOT_FOUND);
+                });
 
         if (!order.getUser().getId().equals(user.getId())) {
+            log.warn("OrderService - Access denied for userId={} on orderId={}", user.getId(), orderId);
             throw new ApiException("Access denied",
                     HttpStatus.FORBIDDEN);
         }
 
-        return mapToResponse(order, order.getItems());
+        OrderResponse resp = mapToResponse(order, order.getItems());
+        log.debug("OrderService - getOrderDetails returning for orderId={} itemsCount={}", orderId, resp.getItems() == null ? 0 : resp.getItems().size());
+        return resp;
     }
 
     // ================= ADMIN GET ALL =================
     public List<OrderResponse> getAllOrders() {
+        log.info("OrderService - getAllOrders called");
 
         List<Order> orders = orderRepository.findAll();
 
@@ -168,6 +195,7 @@ public class OrderService {
             responses.add(mapToResponse(order, order.getItems()));
         }
 
+        log.debug("OrderService - getAllOrders returned count={}", responses.size());
         return responses;
     }
 
@@ -176,10 +204,14 @@ public class OrderService {
     public OrderResponse updateOrderStatus(Long orderId,
                                            UpdateOrderStatusRequest request) {
 
+        log.info("OrderService - updateOrderStatus called: orderId={}, requestedStatus={}", orderId, request == null ? "null" : request.getStatus());
+
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ApiException("Order not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("OrderService - Order not found for update: orderId={}", orderId);
+                    return new ApiException("Order not found",
+                            HttpStatus.NOT_FOUND);
+                });
 
         OrderStatus current = order.getStatus();
         OrderStatus target;
@@ -187,12 +219,12 @@ public class OrderService {
         try {
             target = OrderStatus.valueOf(request.getStatus());
         } catch (Exception e) {
+            log.warn("OrderService - Invalid order status provided for orderId={}: {}", orderId, request.getStatus());
             throw new ApiException("Invalid order status",
                     HttpStatus.BAD_REQUEST);
         }
 
         // ================= TRANSITION VALIDATION =================
-
         boolean valid = false;
 
         switch (current) {
@@ -215,6 +247,7 @@ public class OrderService {
         }
 
         if (!valid) {
+            log.warn("OrderService - Invalid status transition for orderId={}: {} -> {}", orderId, current, target);
             throw new ApiException(
                     "Invalid status transition from " + current + " to " + target,
                     HttpStatus.BAD_REQUEST);
@@ -223,31 +256,39 @@ public class OrderService {
         order.setStatus(target);
 
         Order updated = orderRepository.save(order);
+        log.info("OrderService - Order status updated: orderId={}, from={} to={}", updated.getId(), current, target);
 
         return mapToResponse(updated, updated.getItems());
     }
+
     @Transactional
     public OrderResponse payOrder(Long orderId, boolean forceSuccess) {
 
         User user = getCurrentUser();
+        log.info("OrderService - payOrder called: orderId={}, userId={}, forceSuccess={}", orderId, user.getId(), forceSuccess);
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ApiException("Order not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("OrderService - Order not found for payment: orderId={}", orderId);
+                    return new ApiException("Order not found",
+                            HttpStatus.NOT_FOUND);
+                });
 
         if (!order.getUser().getId().equals(user.getId())) {
+            log.warn("OrderService - Access denied for payment: userId={} orderId={}", user.getId(), orderId);
             throw new ApiException("Access denied",
                     HttpStatus.FORBIDDEN);
         }
 
         // Only allow payment if order is pending
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
+            log.warn("OrderService - Order not in payment phase: orderId={} status={}", orderId, order.getStatus());
             throw new ApiException("Order is not in payment phase",
                     HttpStatus.BAD_REQUEST);
         }
 
         if (order.getPaymentStatus() != PaymentStatus.PENDING) {
+            log.warn("OrderService - Payment already processed for orderId={} paymentStatus={}", orderId, order.getPaymentStatus());
             throw new ApiException("Payment already processed",
                     HttpStatus.BAD_REQUEST);
         }
@@ -259,48 +300,59 @@ public class OrderService {
 
             Order updated = orderRepository.save(order);
 
-            for( OrderItem item : order.getItems()) {
+            for (OrderItem item : order.getItems()) {
                 item.setPaymentStatus(PaymentStatus.SUCCESS);
                 item.setStatus(OrderStatus.PLACED);
                 orderItemRepository.save(item);
             }
 
+            log.info("OrderService - Payment success for orderId={}", orderId);
             return mapToResponse(updated, updated.getItems());
 
         } else {
 
             // Payment failed → restore stock
+            int restored = 0;
             for (OrderItem item : order.getItems()) {
 
                 Product product = productRepository.findById(
                                 item.getProductId())
-                        .orElseThrow(() ->
-                                new ApiException("Product not found",
-                                        HttpStatus.NOT_FOUND));
+                        .orElseThrow(() -> {
+                            log.warn("OrderService - Product not found while restoring stock: productId={}", item.getProductId());
+                            return new ApiException("Product not found",
+                                    HttpStatus.NOT_FOUND);
+                        });
 
                 product.setStock(product.getStock() + item.getQuantity());
                 productRepository.save(product);
+                restored += item.getQuantity();
             }
 
             order.setPaymentStatus(PaymentStatus.FAILED);
             order.setStatus(OrderStatus.PAYMENT_FAILED);
 
             Order updated = orderRepository.save(order);
+            log.info("OrderService - Payment failed for orderId={}, restoredStockCount={}", orderId, restored);
 
             return mapToResponse(updated, updated.getItems());
         }
     }
+
     @Transactional
     public OrderResponse cancelOrder(Long orderId) {
 
         User user = getCurrentUser();
+        log.info("OrderService - cancelOrder called: orderId={}, userId={}", orderId, user.getId());
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ApiException("Order not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("OrderService - Order not found for cancel: orderId={}", orderId);
+                    return new ApiException("Order not found",
+                            HttpStatus.NOT_FOUND);
+                });
 
         if (!order.getUser().getId().equals(user.getId())) {
+            log.warn("OrderService - Access denied for cancel: userId={} orderId={}", user.getId(), orderId);
             throw new ApiException("Access denied",
                     HttpStatus.FORBIDDEN);
         }
@@ -309,21 +361,26 @@ public class OrderService {
                 order.getStatus() == OrderStatus.DELIVERED ||
                 order.getStatus() == OrderStatus.CANCELLED) {
 
+            log.warn("OrderService - Order cannot be cancelled due to status: orderId={}, status={}", orderId, order.getStatus());
             throw new ApiException("Order cannot be cancelled",
                     HttpStatus.BAD_REQUEST);
         }
 
         // Restore stock
+        int restored = 0;
         for (OrderItem item : order.getItems()) {
 
             Product product = productRepository.findById(
                             item.getProductId())
-                    .orElseThrow(() ->
-                            new ApiException("Product not found",
-                                    HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> {
+                        log.warn("OrderService - Product not found while restoring stock on cancel: productId={}", item.getProductId());
+                        return new ApiException("Product not found",
+                                HttpStatus.NOT_FOUND);
+                    });
 
             product.setStock(product.getStock() + item.getQuantity());
             productRepository.save(product);
+            restored += item.getQuantity();
         }
 
         // Update status
@@ -336,6 +393,7 @@ public class OrderService {
         }
 
         Order updated = orderRepository.save(order);
+        log.info("OrderService - Order cancelled: orderId={}, restoredStockCount={}, paymentStatus={}", updated.getId(), restored, updated.getPaymentStatus());
 
         return mapToResponse(updated, updated.getItems());
     }
@@ -343,6 +401,8 @@ public class OrderService {
     // ================= MAPPER =================
     private OrderResponse mapToResponse(Order order,
                                         List<OrderItem> items) {
+
+        log.debug("OrderService - Mapping order to response: orderId={}, itemsCount={}", order.getId(), items == null ? 0 : items.size());
 
         List<OrderItemResponse> itemResponses = new ArrayList<>();
 

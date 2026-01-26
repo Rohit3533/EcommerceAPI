@@ -6,6 +6,7 @@ import com.api.project.Ecomerce.dto.CategoryResponse;
 import com.api.project.Ecomerce.response.ApiResponse;
 import com.api.project.Ecomerce.service.CategoryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class CategoryController {
 
     private final CategoryService categoryService;
@@ -22,8 +24,12 @@ public class CategoryController {
     public ApiResponse<CategoryResponse> createCategory(
             @RequestBody CategoryRequest request) {
 
+        log.info("CategoryController - createCategory called: requestType={}", request == null ? "null" : request.getClass().getSimpleName());
+
         CategoryResponse response =
                 categoryService.createCategory(request);
+
+        log.info("CategoryController - Category created successfully: categoryId={}", response == null ? "null" : response.getId());
 
         return ApiResponse.<CategoryResponse>builder()
                 .success(true)
@@ -39,8 +45,12 @@ public class CategoryController {
             @PathVariable Long id,
             @RequestBody CategoryRequest request) {
 
+        log.info("CategoryController - updateCategory called: id={}, requestType={}", id, request == null ? "null" : request.getClass().getSimpleName());
+
         CategoryResponse response =
                 categoryService.updateCategory(id, request);
+
+        log.info("CategoryController - Category updated successfully: id={}", id);
 
         return ApiResponse.<CategoryResponse>builder()
                 .success(true)
@@ -54,7 +64,11 @@ public class CategoryController {
     @DeleteMapping("/api/admin/categories/{id}")
     public ApiResponse<Void> deleteCategory(@PathVariable Long id) {
 
+        log.info("CategoryController - deleteCategory called: id={}", id);
+
         categoryService.deleteCategory(id);
+
+        log.info("CategoryController - Category deactivated: id={}", id);
 
         return ApiResponse.<Void>builder()
                 .success(true)
@@ -66,7 +80,11 @@ public class CategoryController {
     @PostMapping("/api/admin/categories/{id}")
     public ApiResponse<Void> ActivateCategory(@PathVariable Long id) {
 
+        log.info("CategoryController - ActivateCategory called: id={}", id);
+
         categoryService.activateCategory(id);
+
+        log.info("CategoryController - Category reactivated: id={}", id);
 
         return ApiResponse.<Void>builder()
                 .success(true)
@@ -80,8 +98,12 @@ public class CategoryController {
     @GetMapping("/api/admin/categories")
     public ApiResponse<List<CategoryResponse>> getAllCategories() {
 
+        log.info("CategoryController - getAllCategories called");
+
         List<CategoryResponse> categories =
                 categoryService.getAllCategories();
+
+        log.info("CategoryController - getAllCategories returned count={}", categories == null ? 0 : categories.size());
 
         return ApiResponse.<List<CategoryResponse>>builder()
                 .success(true)
@@ -95,8 +117,12 @@ public class CategoryController {
     @GetMapping("/api/categories")
     public ApiResponse<List<CategoryResponse>> getActiveCategories() {
 
+        log.info("CategoryController - getActiveCategories called");
+
         List<CategoryResponse> categories =
                 categoryService.getActiveCategories();
+
+        log.info("CategoryController - getActiveCategories returned count={}", categories == null ? 0 : categories.size());
 
         return ApiResponse.<List<CategoryResponse>>builder()
                 .success(true)

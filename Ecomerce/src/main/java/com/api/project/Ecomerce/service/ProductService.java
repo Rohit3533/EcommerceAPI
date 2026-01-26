@@ -8,14 +8,15 @@ import com.api.project.Ecomerce.exception.ApiException;
 import com.api.project.Ecomerce.repository.CategoryRepository;
 import com.api.project.Ecomerce.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -24,17 +25,22 @@ public class ProductService {
     // ================= CREATE =================
     public ProductResponse createProduct(ProductRequest request) {
 
+        log.info("Creating product with name: {}", request.getName());
+
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() ->
-                        new ApiException("Category not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("Category not found with id: {}", request.getCategoryId());
+                    return new ApiException("Category not found", HttpStatus.NOT_FOUND);
+                });
 
         if (request.getPrice().doubleValue() <= 0) {
+            log.warn("Invalid price provided for product: {}", request.getPrice());
             throw new ApiException("Price must be greater than zero",
                     HttpStatus.BAD_REQUEST);
         }
 
         if (request.getStock() < 0) {
+            log.warn("Invalid stock provided for product: {}", request.getStock());
             throw new ApiException("Stock cannot be negative",
                     HttpStatus.BAD_REQUEST);
         }
@@ -50,29 +56,37 @@ public class ProductService {
 
         Product saved = productRepository.save(product);
 
+        log.info("Product created successfully with id: {}", saved.getId());
+        log.debug("Created product details: {}", saved);
+
         return mapToResponse(saved);
     }
 
     // ================= UPDATE =================
-    public ProductResponse updateProduct(Long id,
-                                         ProductRequest request) {
+    public ProductResponse updateProduct(Long id, ProductRequest request) {
+
+        log.info("Updating product with id: {}", id);
 
         Product product = productRepository.findById(id)
-                .orElseThrow(() ->
-                        new ApiException("Product not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("Product not found with id: {}", id);
+                    return new ApiException("Product not found", HttpStatus.NOT_FOUND);
+                });
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() ->
-                        new ApiException("Category not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("Category not found with id: {}", request.getCategoryId());
+                    return new ApiException("Category not found", HttpStatus.NOT_FOUND);
+                });
 
         if (request.getPrice().doubleValue() <= 0) {
+            log.warn("Invalid price while updating product id {}: {}", id, request.getPrice());
             throw new ApiException("Price must be greater than zero",
                     HttpStatus.BAD_REQUEST);
         }
 
         if (request.getStock() < 0) {
+            log.warn("Invalid stock while updating product id {}: {}", id, request.getStock());
             throw new ApiException("Stock cannot be negative",
                     HttpStatus.BAD_REQUEST);
         }
@@ -86,23 +100,35 @@ public class ProductService {
 
         Product updated = productRepository.save(product);
 
+        log.info("Product updated successfully with id: {}", updated.getId());
+        log.debug("Updated product details: {}", updated);
+
         return mapToResponse(updated);
     }
 
     // ================= SOFT DELETE =================
     public void deleteProduct(Long id) {
 
+        log.info("Soft deleting product with id: {}", id);
+
         Product product = productRepository.findById(id)
-                .orElseThrow(() ->
-                        new ApiException("Product not found",
-                                HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("Product not found for deletion with id: {}", id);
+                    return new ApiException("Product not found", HttpStatus.NOT_FOUND);
+                });
 
         product.setStock(0); // triggers INACTIVE via @PreUpdate
         productRepository.save(product);
+
+        log.info("Product soft deleted (set to INACTIVE) with id: {}", id);
     }
 
     // ================= ADMIN GET ALL =================
     public Page<ProductResponse> getAllProducts(Pageable pageable) {
+
+        log.debug("Fetching all products. Page: {}, Size: {}",
+                pageable.getPageNumber(),
+                pageable.getPageSize());
 
         return productRepository.findAll(pageable)
                 .map(this::mapToResponse);
@@ -110,6 +136,10 @@ public class ProductService {
 
     // ================= PUBLIC GET ALL (ACTIVE) =================
     public Page<ProductResponse> getActiveProducts(Pageable pageable) {
+
+        log.debug("Fetching active products. Page: {}, Size: {}",
+                pageable.getPageNumber(),
+                pageable.getPageSize());
 
         return productRepository
                 .findByStatus("ACTIVE", pageable)
@@ -119,12 +149,16 @@ public class ProductService {
     // ================= PUBLIC GET BY ID =================
     public ProductResponse getProductById(Long id) {
 
-        Product product = productRepository.findById(id)
-                .orElseThrow(() ->
-                        new ApiException("Product not found",
-                                HttpStatus.NOT_FOUND));
+        log.debug("Fetching product by id: {}", id);
 
-        if (!product.getStatus().equals("ACTIVE")) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Product not found with id: {}", id);
+                    return new ApiException("Product not found", HttpStatus.NOT_FOUND);
+                });
+
+        if (!"ACTIVE".equals(product.getStatus())) {
+            log.warn("Attempt to access inactive product with id: {}", id);
             throw new ApiException("Product not available",
                     HttpStatus.NOT_FOUND);
         }
@@ -136,6 +170,11 @@ public class ProductService {
     public Page<ProductResponse> getProductsByCategory(Long categoryId,
                                                        Pageable pageable) {
 
+        log.debug("Fetching active products by category id: {} | Page: {}, Size: {}",
+                categoryId,
+                pageable.getPageNumber(),
+                pageable.getPageSize());
+
         return productRepository
                 .findByCategoryIdAndStatus(categoryId,
                         "ACTIVE",
@@ -145,6 +184,8 @@ public class ProductService {
 
     // ================= MAPPER =================
     private ProductResponse mapToResponse(Product product) {
+
+        log.debug("Mapping product entity to response. Product id: {}", product.getId());
 
         return ProductResponse.builder()
                 .id(product.getId())
