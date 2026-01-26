@@ -33,6 +33,9 @@ public class User {
     @Column(nullable = false)
     private String status; // ACTIVE or BLOCKED
 
+    @Column(nullable = false)
+    private String address;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

@@ -32,7 +32,7 @@ public class AuthService {
     private long sessionTimeout;
 
     // ================= REGISTER =================
-    public void register(String name, String email, String password) {
+    public void register(String name, String email, String password, String address) {
         log.info("AuthService - Registering user: {} (name={})", email, name);
 
         if (userRepository.existsByEmail(email)) {
@@ -47,6 +47,7 @@ public class AuthService {
                 .password(passwordEncoder.encode(password))
                 .role("CUSTOMER")
                 .status("ACTIVE")
+                .address(address)
                 .build();
 
         userRepository.save(user);

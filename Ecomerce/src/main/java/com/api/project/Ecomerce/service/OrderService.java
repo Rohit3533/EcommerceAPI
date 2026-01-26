@@ -1,4 +1,3 @@
-// java
 package com.api.project.Ecomerce.service;
 import com.api.project.Ecomerce.dto.*;
 import com.api.project.Ecomerce.entity.*;
@@ -118,6 +117,7 @@ public class OrderService {
                 .status(OrderStatus.PENDING_PAYMENT)
                 .paymentStatus(PaymentStatus.PENDING)
                 .paymentReference(paymentRef)
+                .shippingAddress(user.getAddress())
                 .items(new ArrayList<>())
                 .build();
 

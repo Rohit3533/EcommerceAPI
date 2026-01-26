@@ -55,6 +55,9 @@ public class Order {
     @Column(name = "payment_reference")
     private String paymentReference;
 
+    @Column(name = "shipping_address", nullable = false, length = 500)
+    private String shippingAddress;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();

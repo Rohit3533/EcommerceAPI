@@ -30,7 +30,8 @@ public class AuthController {
         authService.register(
                 request.getName(),
                 request.getEmail(),
-                request.getPassword()
+                request.getPassword(),
+                request.getAddress()
         );
         log.info("AuthController - User registered successfully: {}", request.getEmail());
         return ApiResponse.<Void>builder()
