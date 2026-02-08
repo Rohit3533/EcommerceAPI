@@ -1,0 +1,355 @@
+.tracking-page {
+    padding: 2rem 0;
+    min-height: calc(100vh - 200px);
+}
+
+.tracking-header {
+    margin-bottom: 2rem;
+}
+
+.back-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: 1rem;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: var(--primary);
+}
+
+/* Order Summary Card */
+.order-summary-card {
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+}
+
+.order-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.order-ids {
+    display: flex;
+    gap: 2rem;
+}
+
+.order-number,
+.tracking-id,
+.estimated-delivery {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.order-number .label,
+.tracking-id .label,
+.estimated-delivery .label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.order-number .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.tracking-id .value {
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    color: var(--text-primary);
+}
+
+.estimated-delivery .value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--success);
+}
+
+.cancelled-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 8px;
+    color: var(--danger);
+    font-weight: 500;
+}
+
+.cancelled-icon {
+    font-size: 1.5rem;
+}
+
+/* Timeline */
+.tracking-timeline {
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-title {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.timeline {
+    position: relative;
+}
+
+.timeline-step {
+    display: flex;
+    gap: 1.5rem;
+    padding-bottom: 2rem;
+    position: relative;
+}
+
+.timeline-step:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.marker-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+.timeline-step.completed .marker-icon {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.timeline-step.current .marker-icon {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    }
+
+    50% {
+        box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.1);
+    }
+}
+
+.timeline-line {
+    position: absolute;
+    top: 40px;
+    width: 2px;
+    height: calc(100% + 2rem - 40px);
+    background: var(--border-color);
+}
+
+.timeline-step.completed .timeline-line {
+    background: var(--success);
+}
+
+.timeline-content {
+    flex: 1;
+    padding-top: 0.5rem;
+}
+
+.step-label {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+    color: var(--text-secondary);
+}
+
+.timeline-step.completed .step-label,
+.timeline-step.current .step-label {
+    color: var(--text-primary);
+}
+
+.step-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem 0;
+}
+
+.step-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.step-note {
+    font-size: 0.8rem;
+    color: var(--primary);
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+/* Delivery Partner Card */
+.delivery-partner-card {
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.delivery-partner-card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.partner-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.partner-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.partner-details h3 {
+    font-size: 1.1rem;
+    margin: 0 0 0.25rem 0;
+}
+
+.partner-phone,
+.partner-vehicle {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0.25rem 0;
+}
+
+/* Order Items Card */
+.order-items-card {
+    padding: 1.5rem;
+}
+
+.order-items-card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.items-list {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.order-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.order-item:last-child {
+    border-bottom: none;
+}
+
+.item-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+.item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.item-name {
+    font-weight: 500;
+}
+
+.item-qty {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.item-price {
+    font-weight: 600;
+}
+
+.order-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.total-amount {
+    font-size: 1.25rem;
+    color: var(--primary);
+}
+
+.error-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.error-state h2 {
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .order-summary-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .order-ids {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .timeline-step {
+        gap: 1rem;
+    }
+
+    .marker-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 0.875rem;
+    }
+}
