@@ -19,4 +19,5 @@ public class ProductResponse {
 
     private Long categoryId;
     private String categoryName;
+    private String allowedPaymentMethods; // COD,UPI,CARD
 }

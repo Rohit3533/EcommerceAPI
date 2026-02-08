@@ -1,0 +1,58 @@
+ADMIN APIs
+----------
+POST   /api/admin/categories
+PUT    /api/admin/categories/{id}
+DELETE /api/admin/categories/{id}
+POST   /api/admin/categories/{id}              (reactivate category)
+GET    /api/admin/categories
+
+POST   /api/admin/products
+PUT    /api/admin/products/{id}
+DELETE /api/admin/products/{id}
+GET    /api/admin/products?page={page}&size={size}
+
+GET    /api/admin/orders
+PUT    /api/admin/orders/{orderId}/status
+
+GET    /api/admin/users
+PUT    /api/admin/users/{id}/role
+PUT    /api/admin/users/{id}/status
+
+
+CUSTOMER APIs
+-------------
+// Auth
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/logout
+GET    /api/auth/me
+
+// Cart
+POST   /api/cart/add
+PUT    /api/cart/update
+DELETE /api/cart/remove/{productId}
+DELETE /api/cart/clear
+GET    /api/cart
+
+// Categories
+GET    /api/categories
+
+// Products
+GET    /api/products?page={page}&size={size}
+GET    /api/products/{id}
+GET    /api/products/category/{categoryId}?page={page}&size={size}
+
+// Orders
+POST   /api/orders/place
+GET    /api/orders/my
+GET    /api/orders/{orderId}
+POST   /api/orders/{orderId}/pay
+POST   /api/orders/{orderId}/cancel
+
+// Health
+GET    /api/v1/health
+
+// Profile
+GET    /api/profile
+PUT    /api/profile
+

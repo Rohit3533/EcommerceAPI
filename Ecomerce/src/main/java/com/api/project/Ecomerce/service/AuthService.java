@@ -31,8 +31,8 @@ public class AuthService {
     @Value("${session.timeout.minutes}")
     private long sessionTimeout;
 
-    // ================= REGISTER =================
-    public void register(String name, String email, String password, String address) {
+    // ================= REGISTER (Legacy - without OTP) =================
+    public void register(String name, String email, String password, String phone) {
         log.info("AuthService - Registering user: {} (name={})", email, name);
 
         if (userRepository.existsByEmail(email)) {
@@ -45,9 +45,10 @@ public class AuthService {
                 .name(name)
                 .email(email)
                 .password(passwordEncoder.encode(password))
+                .phone(phone)
                 .role("CUSTOMER")
                 .status("ACTIVE")
-                .address(address)
+                .emailVerified(false)
                 .build();
 
         userRepository.save(user);
@@ -61,8 +62,7 @@ public class AuthService {
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(email, password)
-            );
+                    new UsernamePasswordAuthenticationToken(email, password));
         } catch (AuthenticationException ex) {
             log.warn("AuthService - Authentication failed for {}: {}", email, ex.getMessage());
             throw new ApiException("Invalid credentials",
@@ -77,8 +77,7 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(
                 user.getEmail(),
-                user.getRole()
-        );
+                user.getRole());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -116,11 +115,13 @@ public class AuthService {
         session.setIsActive(false);
         sessionRepository.save(session);
 
-        log.info("AuthService - Session invalidated for user: {} tokenEnding: {}", session.getUser().getEmail(), masked);
+        log.info("AuthService - Session invalidated for user: {} tokenEnding: {}", session.getUser().getEmail(),
+                masked);
     }
 
     private String maskToken(String token) {
-        if (token == null) return "***";
+        if (token == null)
+            return "***";
         return token.length() > 4 ? ("***" + token.substring(token.length() - 4)) : "***";
     }
 }

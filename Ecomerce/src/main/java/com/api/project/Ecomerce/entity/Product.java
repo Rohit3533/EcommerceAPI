@@ -37,8 +37,12 @@ public class Product {
     @Column(nullable = false)
     private String status; // ACTIVE / INACTIVE
 
+    @Column(name = "allowed_payment_methods", nullable = false)
+    @Builder.Default
+    private String allowedPaymentMethods = "CARD"; // Comma-separated: COD,UPI,CARD
+
     // ================= RELATION =================
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 

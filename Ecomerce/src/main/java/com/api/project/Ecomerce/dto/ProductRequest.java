@@ -13,4 +13,5 @@ public class ProductRequest {
     private Integer stock;
     private String imageUrl;
     private Long categoryId;
+    private String allowedPaymentMethods; // Comma-separated: COD,UPI,CARD
 }

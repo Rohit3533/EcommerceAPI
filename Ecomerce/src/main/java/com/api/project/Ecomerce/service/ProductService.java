@@ -13,190 +13,208 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class ProductService {
 
-    private final ProductRepository productRepository;
-    private final CategoryRepository categoryRepository;
+        private final ProductRepository productRepository;
+        private final CategoryRepository categoryRepository;
 
-    // ================= CREATE =================
-    public ProductResponse createProduct(ProductRequest request) {
+        // ================= CREATE =================
+        @Transactional
+        public ProductResponse createProduct(ProductRequest request) {
 
-        log.info("Creating product with name: {}", request.getName());
+                log.info("Creating product with name: {}", request.getName());
 
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> {
-                    log.warn("Category not found with id: {}", request.getCategoryId());
-                    return new ApiException("Category not found", HttpStatus.NOT_FOUND);
-                });
+                Category category = categoryRepository.findById(request.getCategoryId())
+                                .orElseThrow(() -> {
+                                        log.warn("Category not found with id: {}", request.getCategoryId());
+                                        return new ApiException("Category not found", HttpStatus.NOT_FOUND);
+                                });
 
-        if (request.getPrice().doubleValue() <= 0) {
-            log.warn("Invalid price provided for product: {}", request.getPrice());
-            throw new ApiException("Price must be greater than zero",
-                    HttpStatus.BAD_REQUEST);
+                if (request.getPrice().doubleValue() <= 0) {
+                        log.warn("Invalid price provided for product: {}", request.getPrice());
+                        throw new ApiException("Price must be greater than zero",
+                                        HttpStatus.BAD_REQUEST);
+                }
+
+                if (request.getStock() < 0) {
+                        log.warn("Invalid stock provided for product: {}", request.getStock());
+                        throw new ApiException("Stock cannot be negative",
+                                        HttpStatus.BAD_REQUEST);
+                }
+
+                String paymentMethods = request.getAllowedPaymentMethods();
+                if (paymentMethods == null || paymentMethods.isBlank()) {
+                        paymentMethods = "CARD"; // Default to card
+                }
+
+                Product product = Product.builder()
+                                .name(request.getName())
+                                .description(request.getDescription())
+                                .price(request.getPrice())
+                                .stock(request.getStock())
+                                .imageUrl(request.getImageUrl())
+                                .category(category)
+                                .allowedPaymentMethods(paymentMethods)
+                                .build();
+
+                Product saved = productRepository.save(product);
+
+                log.info("Product created successfully with id: {}", saved.getId());
+                log.debug("Created product details: {}", saved);
+
+                return mapToResponse(saved);
         }
 
-        if (request.getStock() < 0) {
-            log.warn("Invalid stock provided for product: {}", request.getStock());
-            throw new ApiException("Stock cannot be negative",
-                    HttpStatus.BAD_REQUEST);
+        // ================= UPDATE =================
+        @Transactional
+        public ProductResponse updateProduct(Long id, ProductRequest request) {
+
+                log.info("Updating product with id: {}", id);
+
+                Product product = productRepository.findById(id)
+                                .orElseThrow(() -> {
+                                        log.warn("Product not found with id: {}", id);
+                                        return new ApiException("Product not found", HttpStatus.NOT_FOUND);
+                                });
+
+                Category category = categoryRepository.findById(request.getCategoryId())
+                                .orElseThrow(() -> {
+                                        log.warn("Category not found with id: {}", request.getCategoryId());
+                                        return new ApiException("Category not found", HttpStatus.NOT_FOUND);
+                                });
+
+                if (request.getPrice().doubleValue() <= 0) {
+                        log.warn("Invalid price while updating product id {}: {}", id, request.getPrice());
+                        throw new ApiException("Price must be greater than zero",
+                                        HttpStatus.BAD_REQUEST);
+                }
+
+                if (request.getStock() < 0) {
+                        log.warn("Invalid stock while updating product id {}: {}", id, request.getStock());
+                        throw new ApiException("Stock cannot be negative",
+                                        HttpStatus.BAD_REQUEST);
+                }
+
+                product.setName(request.getName());
+                product.setDescription(request.getDescription());
+                product.setPrice(request.getPrice());
+                product.setStock(request.getStock());
+                product.setImageUrl(request.getImageUrl());
+                product.setCategory(category);
+
+                if (request.getAllowedPaymentMethods() != null && !request.getAllowedPaymentMethods().isBlank()) {
+                        product.setAllowedPaymentMethods(request.getAllowedPaymentMethods());
+                }
+
+                Product updated = productRepository.save(product);
+
+                log.info("Product updated successfully with id: {}", updated.getId());
+                log.debug("Updated product details: {}", updated);
+
+                return mapToResponse(updated);
         }
 
-        Product product = Product.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .price(request.getPrice())
-                .stock(request.getStock())
-                .imageUrl(request.getImageUrl())
-                .category(category)
-                .build();
+        // ================= SOFT DELETE =================
+        @Transactional
+        public void deleteProduct(Long id) {
 
-        Product saved = productRepository.save(product);
+                log.info("Soft deleting product with id: {}", id);
 
-        log.info("Product created successfully with id: {}", saved.getId());
-        log.debug("Created product details: {}", saved);
+                Product product = productRepository.findById(id)
+                                .orElseThrow(() -> {
+                                        log.warn("Product not found for deletion with id: {}", id);
+                                        return new ApiException("Product not found", HttpStatus.NOT_FOUND);
+                                });
 
-        return mapToResponse(saved);
-    }
+                product.setStock(0); // triggers INACTIVE via @PreUpdate
+                productRepository.save(product);
 
-    // ================= UPDATE =================
-    public ProductResponse updateProduct(Long id, ProductRequest request) {
-
-        log.info("Updating product with id: {}", id);
-
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Product not found with id: {}", id);
-                    return new ApiException("Product not found", HttpStatus.NOT_FOUND);
-                });
-
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> {
-                    log.warn("Category not found with id: {}", request.getCategoryId());
-                    return new ApiException("Category not found", HttpStatus.NOT_FOUND);
-                });
-
-        if (request.getPrice().doubleValue() <= 0) {
-            log.warn("Invalid price while updating product id {}: {}", id, request.getPrice());
-            throw new ApiException("Price must be greater than zero",
-                    HttpStatus.BAD_REQUEST);
+                log.info("Product soft deleted (set to INACTIVE) with id: {}", id);
         }
 
-        if (request.getStock() < 0) {
-            log.warn("Invalid stock while updating product id {}: {}", id, request.getStock());
-            throw new ApiException("Stock cannot be negative",
-                    HttpStatus.BAD_REQUEST);
+        // ================= ADMIN GET ALL =================
+        public Page<ProductResponse> getAllProducts(Pageable pageable) {
+
+                log.debug("Fetching all products. Page: {}, Size: {}",
+                                pageable.getPageNumber(),
+                                pageable.getPageSize());
+
+                return productRepository.findAll(pageable)
+                                .map(this::mapToResponse);
         }
 
-        product.setName(request.getName());
-        product.setDescription(request.getDescription());
-        product.setPrice(request.getPrice());
-        product.setStock(request.getStock());
-        product.setImageUrl(request.getImageUrl());
-        product.setCategory(category);
+        // ================= PUBLIC GET ALL (ACTIVE) =================
+        public Page<ProductResponse> getActiveProducts(Pageable pageable) {
 
-        Product updated = productRepository.save(product);
+                log.debug("Fetching active products. Page: {}, Size: {}",
+                                pageable.getPageNumber(),
+                                pageable.getPageSize());
 
-        log.info("Product updated successfully with id: {}", updated.getId());
-        log.debug("Updated product details: {}", updated);
-
-        return mapToResponse(updated);
-    }
-
-    // ================= SOFT DELETE =================
-    public void deleteProduct(Long id) {
-
-        log.info("Soft deleting product with id: {}", id);
-
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Product not found for deletion with id: {}", id);
-                    return new ApiException("Product not found", HttpStatus.NOT_FOUND);
-                });
-
-        product.setStock(0); // triggers INACTIVE via @PreUpdate
-        productRepository.save(product);
-
-        log.info("Product soft deleted (set to INACTIVE) with id: {}", id);
-    }
-
-    // ================= ADMIN GET ALL =================
-    public Page<ProductResponse> getAllProducts(Pageable pageable) {
-
-        log.debug("Fetching all products. Page: {}, Size: {}",
-                pageable.getPageNumber(),
-                pageable.getPageSize());
-
-        return productRepository.findAll(pageable)
-                .map(this::mapToResponse);
-    }
-
-    // ================= PUBLIC GET ALL (ACTIVE) =================
-    public Page<ProductResponse> getActiveProducts(Pageable pageable) {
-
-        log.debug("Fetching active products. Page: {}, Size: {}",
-                pageable.getPageNumber(),
-                pageable.getPageSize());
-
-        return productRepository
-                .findByStatus("ACTIVE", pageable)
-                .map(this::mapToResponse);
-    }
-
-    // ================= PUBLIC GET BY ID =================
-    public ProductResponse getProductById(Long id) {
-
-        log.debug("Fetching product by id: {}", id);
-
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Product not found with id: {}", id);
-                    return new ApiException("Product not found", HttpStatus.NOT_FOUND);
-                });
-
-        if (!"ACTIVE".equals(product.getStatus())) {
-            log.warn("Attempt to access inactive product with id: {}", id);
-            throw new ApiException("Product not available",
-                    HttpStatus.NOT_FOUND);
+                return productRepository
+                                .findByStatus("ACTIVE", pageable)
+                                .map(this::mapToResponse);
         }
 
-        return mapToResponse(product);
-    }
+        // ================= PUBLIC GET BY ID =================
+        public ProductResponse getProductById(Long id) {
 
-    // ================= PUBLIC GET BY CATEGORY =================
-    public Page<ProductResponse> getProductsByCategory(Long categoryId,
-                                                       Pageable pageable) {
+                log.debug("Fetching product by id: {}", id);
 
-        log.debug("Fetching active products by category id: {} | Page: {}, Size: {}",
-                categoryId,
-                pageable.getPageNumber(),
-                pageable.getPageSize());
+                Product product = productRepository.findById(id)
+                                .orElseThrow(() -> {
+                                        log.warn("Product not found with id: {}", id);
+                                        return new ApiException("Product not found", HttpStatus.NOT_FOUND);
+                                });
 
-        return productRepository
-                .findByCategoryIdAndStatus(categoryId,
-                        "ACTIVE",
-                        pageable)
-                .map(this::mapToResponse);
-    }
+                if (!"ACTIVE".equals(product.getStatus())) {
+                        log.warn("Attempt to access inactive product with id: {}", id);
+                        throw new ApiException("Product not available",
+                                        HttpStatus.NOT_FOUND);
+                }
 
-    // ================= MAPPER =================
-    private ProductResponse mapToResponse(Product product) {
+                return mapToResponse(product);
+        }
 
-        log.debug("Mapping product entity to response. Product id: {}", product.getId());
+        // ================= PUBLIC GET BY CATEGORY =================
+        public Page<ProductResponse> getProductsByCategory(Long categoryId,
+                        Pageable pageable) {
 
-        return ProductResponse.builder()
-                .id(product.getId())
-                .name(product.getName())
-                .description(product.getDescription())
-                .price(product.getPrice())
-                .stock(product.getStock())
-                .imageUrl(product.getImageUrl())
-                .status(product.getStatus())
-                .categoryId(product.getCategory().getId())
-                .categoryName(product.getCategory().getName())
-                .build();
-    }
+                log.debug("Fetching active products by category id: {} | Page: {}, Size: {}",
+                                categoryId,
+                                pageable.getPageNumber(),
+                                pageable.getPageSize());
+
+                return productRepository
+                                .findByCategoryIdAndStatus(categoryId,
+                                                "ACTIVE",
+                                                pageable)
+                                .map(this::mapToResponse);
+        }
+
+        // ================= MAPPER =================
+        private ProductResponse mapToResponse(Product product) {
+
+                log.debug("Mapping product entity to response. Product id: {}", product.getId());
+
+                Category category = product.getCategory();
+
+                return ProductResponse.builder()
+                                .id(product.getId())
+                                .name(product.getName())
+                                .description(product.getDescription())
+                                .price(product.getPrice())
+                                .stock(product.getStock())
+                                .imageUrl(product.getImageUrl())
+                                .status(product.getStatus())
+                                .categoryId(category != null ? category.getId() : null)
+                                .categoryName(category != null ? category.getName() : null)
+                                .allowedPaymentMethods(product.getAllowedPaymentMethods())
+                                .build();
+        }
 }

@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -27,14 +29,22 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column
+    private String phone;
+
     @Column(nullable = false)
-    private String role;   // ADMIN or CUSTOMER
+    private String role; // ADMIN, CUSTOMER, or DELIVERY_PARTNER
 
     @Column(nullable = false)
     private String status; // ACTIVE or BLOCKED
 
-    @Column(nullable = false)
-    private String address;
+    @Column(name = "email_verified")
+    @Builder.Default
+    private Boolean emailVerified = false;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Address> addresses = new ArrayList<>();
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -47,10 +57,23 @@ public class User {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         this.status = "ACTIVE";
+        if (this.emailVerified == null) {
+            this.emailVerified = false;
+        }
     }
 
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Get default address or first address if no default set
+     */
+    public Address getDefaultAddress() {
+        return addresses.stream()
+                .filter(a -> Boolean.TRUE.equals(a.getIsDefault()))
+                .findFirst()
+                .orElse(addresses.isEmpty() ? null : addresses.get(0));
     }
 }
